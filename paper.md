@@ -1,33 +1,77 @@
 ---
-title: 'Smart CCD: Software para Análise de Cromatografia por Densitometria com Visão Computacional'
-tags:
-  - CCD
-  - densitometria
-  - visão computacional
-  - aprendizado de máquina
-  - flet
-  - python
+title: "Smart-TLC: UX software for semi-automated thin-layer chromatography analysis"
 authors:
   - name: Daniella L. Vale
-    orcid: 0000-0000-0000-0000
-    affiliation: 1
+    affiliation: "Department of Analytical Chemistry, Institute of Chemistry, Federal University of Rio de Janeiro, Brazil"
+    orcid: 0000-0003-0658-4206
   - name: Rodolfo S. Barboza
-    orcid: 0000-0000-0000-0000
-    affiliation: 2
-affiliations:
-  - name: Universidade Federal do Rio de Janeiro (UFRJ)
-    index: 1
-  - name: Universidade Federal do Piauí (UFPI)
-    index: 2
-date: 2025-06-12
+    affiliation: "Department of Analytical Chemistry, Institute of Chemistry, Federal University of Rio de Janeiro, Brazil"
+corresponding_author:
+  name: Daniella L. Vale
+  email: daniellavale@iq.ufrj.br
+  github: DaniellaVale
+date: 2025-06-27
+repository: https://github.com/DaniellaVale/SmartTLC_0.1
 ---
 
-# Resumo
+## Summary
 
-O **Smart CCD** é um software livre desenvolvido em Python com interface gráfica baseada em Flet para análise automatizada de cromatografia por densitometria. O sistema permite a captura de imagens por webcam, recorte interativo de regiões de interesse, normalização automática de manchas com base em área e intensidade, e treinamento de modelos de rede neural convolucional para estimativa da concentração de analitos. O projeto foi desenvolvido com apoio de ferramentas de inteligência artificial generativa...
+Smart-TLC is a Python-based open-source software for semi-automated thin-layer chromatography (TLC) analysis, combining computer vision and machine learning (CNN) techniques. The tool enables image acquisition from a webcam, grayscale-based normalization of chromatographic spots, and quantitative analysis through polynomial regression models to estimate analyte concentrations. Its graphical user interface (developed in Flet) follows user experience (UX) principles, making it accessible even for non-programmers. Validation tests with standard solutions confirmed high accuracy and reproducibility, with R² exceeding 0.95. Smart-TLC provides a low-cost, transparent alternative to traditional densitometric systems and supports democratization of TLC analysis in research and educational environments.
 
-# Referências
+## Statement of Need
 
-[1] Chollet, F. et al. (2015). Keras. https://keras.io  
-[2] OpenCV. https://opencv.org  
-[3] Flet. https://flet.dev  
+Thin-layer chromatography remains a low-cost, accessible analytical technique but traditionally depends on expensive densitometric instruments. Smart-TLC fills a technological gap by providing:
+
+- a user-friendly interface
+- webcam-based image acquisition
+- automated normalization of spots
+- polynomial quantification
+- offline, free, and open-source operation
+
+It empowers researchers and students to perform semi-quantitative and quantitative TLC analysis without requiring advanced programming skills or costly equipment.
+
+## Installation
+
+Requirements:
+
+- Python ≥ 3.10  
+- OpenCV  
+- TensorFlow  
+- Pandas  
+- Pillow  
+- Flet  
+- Matplotlib
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+
+## Features
+Webcam-based TLC plate image capture
+
+Coordinate-based cropping and storage of metadata
+
+Automatic grayscale normalization
+
+Quantitative analysis by quadratic regression
+
+Visualization of normalized spot areas in bar charts
+
+Modular and intuitive UX-based graphical interface
+
+## Acknowledgments
+This work used generative AI tools (ChatGPT, DeepSeek) to accelerate code structuring, error handling, and manuscript editing, under the full supervision and authorship responsibility of the developers.
+
+
+## License
+This project is released under a modified MIT license (for non-commercial use).
+
+## References
+Wall, P. E. (2005). Thin-layer Chromatography: A Modern Practical Approach. Royal Society of Chemistry.
+
+Reich, E. and Schibli, A. (2007). High-performance thin-layer chromatography for the analysis of medicinal plants. Journal of AOAC International, 90(2), 408–428.
+
+Queiroz, F. et al. (2017). Good Usability Practices in Scientific Software Development. arXiv:1709.00111.
+
+Cordero, C. & Vincenti, M. (2024). Advances in Chromatography Using Artificial Intelligence and Machine Learning. ChromatographyOnline. 20(7), 31–34.

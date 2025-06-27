@@ -36,7 +36,6 @@ Requirements:
 
 - Python ≥ 3.10  
 - OpenCV  
-- TensorFlow  
 - Pandas  
 - Pillow  
 - Flet  

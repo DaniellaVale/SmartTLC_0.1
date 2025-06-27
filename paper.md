@@ -6,6 +6,7 @@ authors:
     orcid: 0000-0003-0658-4206
   - name: Rodolfo S. Barboza
     affiliation: "Department of Analytical Chemistry, Institute of Chemistry, Federal University of Rio de Janeiro, Brazil"
+    orcid: 0000-0002-7098-2447
 corresponding_author:
   name: Daniella L. Vale
   email: daniellavale@iq.ufrj.br

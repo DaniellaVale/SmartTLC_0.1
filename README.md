@@ -1,42 +1,42 @@
-# Smart CCD
+# Smart TLC
 
-**Smart CCD** é um software desenvolvido para análise de cromatografia por densitometria (CCD), com funcionalidades para captura de imagens, corte, normalização e quantificação utilizando técnicas de visão computacional e aprendizado de máquina (CNN).
+**Smart TLC** is software developed for thin-layer chromatography (TLC) analysis, with features for image capture, cropping, normalization, and quantification using computer vision and machine learning techniques (CNN).
 
-## Funcionalidades
+## Features
 
-- Captura de imagem via webcam
-- Corte e visualização da região de interesse
-- Cálculo de área normalizada
-- Armazenamento de dados em Excel
-- Treinamento de modelo de rede neural convolucional (InceptionV3)
-- Interface gráfica desenvolvida com [Flet](https://flet.dev/)
+- Image capture via webcam
+- Cropping and visualization of the region of interest
+- Normalized area calculation
+- Data storage in Excel
+- Regression with polynomial function
+- Graphical interface developed with Flet
 
-## Como usar (Windows)
+## How to use (Windows)
 
-1. Instale o Python 3.10 ou superior.
-2. Instale os requisitos com:
+1. Install Python 3.10 or higher.
+2. Install the requirements with:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Execute o atalho `Iniciar_SmartCCD.bat` na raiz do repositório para iniciar o app com terminal.
+3. Run the Iniciar_SmartCCD.bat shortcut at the root of the repository to start the app with the terminal.
 
 ## Requisitos
 
 - Python ≥ 3.10
 - OpenCV
-- TensorFlow
 - Pandas
 - Pillow
 - Flet
 - Matplotlib
+- scikit-learn
 
 ## Autores
 
-- **Daniella L. Vale** – Desenvolvimento completo do software e testes
-- **Rodolfo S. Barboza** – Idealização das funcionalidades e validação dos requisitos
+- **Daniella L. Vale** – Full software development and testing
+- **Rodolfo S. Barboza** – Feature design and requirements validation
 
-## Apoio
+## Acknowledgment
 
-Este projeto contou com apoio de ferramentas de IA generativa como **ChatGPT (OpenAI)** e **DeepSeek** para estruturação e aceleração do desenvolvimento de funções e lógica de engenharia de software.
+This project was supported by generative AI tools such as ChatGPT (OpenAI) and DeepSeek for structuring and accelerating the development of functions and software engineering logic.

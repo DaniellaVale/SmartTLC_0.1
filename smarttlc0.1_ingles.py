@@ -33,18 +33,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import matplotlib.pyplot as plt
 
-# Global variables
-last_image = None
-cropped_image = None
-data_table = pd.DataFrame()
-data_table.to_excel("TLC_data.xlsx", index=False)
-image_file = None
-percentages = []
-graph_container = None
+# Variáveis globais
+ultima_imagem = None
+imagem_cortada = None
+tabela = pd.DataFrame()
+tabela.to_excel("dadosCCD.xlsx", index=False)
+arquivo_da_imagem = None
+percentuais = []
+grafico_container = None
 camera_thread = None
 camera_running = False
 
-def reset_page_state(page):
+"""Reset all page elements to default state"""
+def resetar_estado_da_pagina(page):
     page.overlay.clear()
     page.appbar = None
     page.drawer = None
@@ -55,7 +56,8 @@ def reset_page_state(page):
     page.controls.clear()
     page.update()
 
-def go_to_page(page, page_function):
+"""Navigate to another page with proper cleanup"""
+def ir_para_pagina(page, funcao_pagina):
     global camera_thread, camera_running
 
     if camera_running:
@@ -63,35 +65,36 @@ def go_to_page(page, page_function):
         if camera_thread and camera_thread.is_alive():
             camera_thread.join(timeout=0.5)
 
-    reset_page_state(page)
-    page_function(page)
+    resetar_estado_da_pagina(page)
+    funcao_pagina(page)
     page.update()
 
-def home_page(page):
-    page.title = "Smart TLC"
+"""Main home page of the application"""
+def pagina_inicial(page):
+    page.title = "TLC Analysis"
     page.clean()
     page.bgcolor = ft.colors.BLUE_50
     
-    title = ft.Text(
-        value="TLC Analysis with Machine Learning", 
+    titulo = ft.Text(
+        value="TLC Analysis", 
         text_align=ft.TextAlign.CENTER,
         color=ft.colors.BLUE_GREY_700,
         size=40
     )
     
-    start_button = ft.ElevatedButton(
+    botao_inicio = ft.ElevatedButton(
         text="Start samples",
         color=ft.colors.WHITE,
         bgcolor=ft.colors.BLUE_700,
         icon=ft.icons.INSIGHTS,
         icon_color=ft.colors.WHITE,
-        on_click=lambda e: go_to_page(page, samples),
+        on_click=lambda e: ir_para_pagina(page, amostras),
         width=400,
         height=50
     )
     
-    files_button = ft.ElevatedButton(
-        text="Files",
+    botao_arquivo = ft.ElevatedButton(
+        text="Arquivos",
         color=ft.colors.WHITE,
         bgcolor=ft.colors.BLUE_700,
         icon=ft.icons.FILE_OPEN,
@@ -103,8 +106,8 @@ def home_page(page):
     page.add(
         ft.Column(
             [
-                ft.Container(title, padding=20, alignment=ft.alignment.center),
-                ft.Container(start_button, padding=10, alignment=ft.alignment.center)
+                ft.Container(titulo, padding=20, alignment=ft.alignment.center),
+                ft.Container(botao_inicio, padding=10, alignment=ft.alignment.center)
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             expand=True
@@ -112,8 +115,9 @@ def home_page(page):
     )
     page.update()
 
-def samples(page):
-    title=ft.Container(content=ft.Text(value="TLC Image Capture", 
+"""Page for capturing and processing TLC samples"""
+def amostras(page):
+    titulo=ft.Container(content=ft.Text(value="TLC Image Capture", 
                                       text_align=ft.alignment.bottom_center,
                                       color=ft.colors.BLUE_GREY_700,
                                       size=40),
@@ -123,224 +127,226 @@ def samples(page):
                                       top=ft.alignment.bottom_center,
                                       alignment=ft.alignment.bottom_center)
     
-    home_button = ft.ElevatedButton(text="⬅Back to home",
-                                        on_click=lambda e: go_to_page(page, home_page),
+    botao_pag_inicial = ft.ElevatedButton(text="⬅Back to home",
+                                        on_click=lambda e: ir_para_pagina(page, pagina_inicial),
                                         right=100,
                                         top=560)
     
-    CNN_button = ft.ElevatedButton(text="📊Image Analysis by Regression",
-                                on_click=lambda e: go_to_page(page, CNN),
+    botao_CNN = ft.ElevatedButton(text="📊Image Analysis by Regression",
+                                on_click=lambda e: ir_para_pagina(page, CNN),
                                 right=80,
                                 top=440)
     
-    normalization_button = ft.ElevatedButton(text="🔬TLC Normalization",
-                                            on_click=lambda e: go_to_page(page, normalization),
+    botao_normalizacaoCCD = ft.ElevatedButton(text="🔬TLC Normalization",
+                                            on_click=lambda e: ir_para_pagina(page, normalizacao),
                                             right=100,
                                             top=500)
     
-    crop_notice = ft.Text("A new window will appear. After selecting the area, press Enter",
+    aviso_cortar = ft.Text("A new window will appear. After selecting the area, press Enter",
                           size=12, color=ft.colors.BLUE_GREY_600, italic=True)
     
-    notice_container = ft.Container(crop_notice, top=480, right=750)
-    save_message = ft.Text("", color=ft.colors.GREEN, size=14)
-    message_container = ft.Container(save_message, top=630, right=370)
-
-    def live_feed():
-        global last_image
-        capture = cv2.VideoCapture(1)
-        if not capture.isOpened():
-            print('Error: camera could not be opened.')
+    container_aviso = ft.Container(aviso_cortar, top=480, right=750)
+    mensagem_salvo = ft.Text("", color=ft.colors.GREEN, size=14)
+    container_mensagem = ft.Container(mensagem_salvo, top=630, right=370)
+"""Display live camera feed"""
+    def aovivo():
+        global ultima_imagem
+        captura = cv2.VideoCapture(1)
+        if not captura.isOpened():
+            print('Error: Camera could not be opened.')
             return
 
-        capture.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-        capture.set(cv2.CAP_PROP_FOCUS, 30)
-        capture.set(cv2.CAP_PROP_AUTO_WB, 0)
-        capture.set(cv2.CAP_PROP_WB_TEMPERATURE, 4000)
-        capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
-        capture.set(cv2.CAP_PROP_EXPOSURE, -6)
-        capture.set(cv2.CAP_PROP_BRIGHTNESS, 30)
-        capture.set(cv2.CAP_PROP_CONTRAST, 60)
-        capture.set(cv2.CAP_PROP_SATURATION, 10)
+        captura.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+        captura.set(cv2.CAP_PROP_FOCUS, 30)
+        captura.set(cv2.CAP_PROP_AUTO_WB, 0)
+        captura.set(cv2.CAP_PROP_WB_TEMPERATURE, 4000)
+        captura.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
+        captura.set(cv2.CAP_PROP_EXPOSURE, -6)
+        captura.set(cv2.CAP_PROP_BRIGHTNESS, 30)
+        captura.set(cv2.CAP_PROP_CONTRAST, 60)
+        captura.set(cv2.CAP_PROP_SATURATION, 10)
 
         while True:
-            working, frame = capture.read()
-            pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            storage = BytesIO()
-            pil_image.save(storage, format="JPEG")
-            camera_image=base64.b64encode(storage.getvalue()).decode("utf-8")
-            camera_display.src_base64 = camera_image
-            last_image=frame
+            funcionando, frame = captura.read()
+            pildaimagem = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            local_de_armazenar = BytesIO()
+            pildaimagem.save(local_de_armazenar, format="JPEG")
+            imagemdacamera=base64.b64encode(local_de_armazenar.getvalue()).decode("utf-8")
+            imagem_camera.src_base64 = imagemdacamera
+            ultima_imagem=frame
             page.update()
 
-    camera_display = ft.Image(width=300,height=400, right=800, top=100)
+    imagem_camera = ft.Image(width=300,height=400, right=800, top=100)
     
-    background= ft.Container(expand=True,
+    corfundo2= ft.Container(expand=True,
                            gradient=ft.LinearGradient(begin=ft.alignment.top_left,
                                                      end=ft.alignment.bottom_right,
                                                      colors=[ft.colors.BLUE_100,ft.colors.BLUE_900],
                                                      stops=[0,1]))
     
-    sample_name_field=ft.TextField(label="Sample name")
-    sample_name=ft.Container(sample_name_field,top=500, right=300)
-    concentration_field= ft.TextField(label="Sample concentration")
-    sample_concentration = ft.Container(concentration_field, top=550, right=300)
-
-    def crop_image(e):
-        global last_image, cropped_image
-        crop=cv2.selectROI("Image selection", last_image, showCrosshair=True)
-        x,y,w,h = crop
-        cropped = last_image[int(y): int(y+h), int(x): int(x+w)]
-        encoded_image, buffer = cv2.imencode('.png', cropped)
-        cropped_base64 = base64.b64encode(buffer).decode('utf-8')
-        cropped_display.src_base64=cropped_base64
-        cropped_image=cropped
+    nome_amostra1=ft.TextField(label="nome da amostra")
+    nome_amostra=ft.Container(nome_amostra1,top=500, right=300)
+    concentracao_amostra1= ft.TextField(label="Concentração da amostra")
+    concentracao_amostra = ft.Container(concentracao_amostra1, top=550, right=300)
+"""Crop the selected area from the image"""
+    def cortar_imagem(e):
+        global ultima_imagem, imagem_cortada
+        cortar=cv2.selectROI("seleção da imagem", ultima_imagem, showCrosshair=True)
+        x,y,l,a = cortar
+        cortada = ultima_imagem[int(y): int(y+a), int(x): int(x+l)]
+        bolenanodaimagem, memoria = cv2.imencode('.png', cortada)
+        cortada_base64 = base64.b64encode(memoria).decode('utf-8')
+        imagemcortada_foto.src_base64=cortada_base64
+        imagem_cortada=cortada
         cv2.destroyAllWindows()
 
-    crop_button=ft.ElevatedButton(text="✂Crop image", on_click=crop_image, top=440, right=920)
-    cropped_display= ft.Image(crop_image, width=300,height=400, right=300, top=100)
-
-    def save_image(e):
-        global cropped_image
-        name= sample_name_field.value.strip() 
-        concentration = concentration_field.value.strip()
-        if cropped_image is not None:
-            pil_image = Image.fromarray(cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB))
-            pil_image.save(f"{name}, C= {concentration}.jpg")
-        sample_data = pd.DataFrame({"Name":[name], "concentration":[concentration]})
-        previous_data = pd.read_excel("TLC_data.xlsx")
-        combined_tables=pd.concat([previous_data,sample_data])
-        combined_tables.to_excel("TLC_data.xlsx", index=False)
+    botao_cortar=ft.ElevatedButton(text="✂Crop image", on_click=cortar_imagem, top=440, right=920)
+    imagemcortada_foto= ft.Image(cortar_imagem, width=300,height=400, right=300, top=100)
+"""Save the processed image and sample data"""
+    def salvarimagem(e):
+        global imagem_cortada
+        nome= nome_amostra1.value.strip() 
+        concentracao = concentracao_amostra1.value.strip()
+        if imagem_cortada is not None:
+            pil_da_imagem = Image.fromarray(cv2.cvtColor(imagem_cortada, cv2.COLOR_BGR2RGB))
+            pil_da_imagem.save(f"{nome}, C= {concentracao}.jpg")
+        dados_amostra = pd.DataFrame({"Nome":[nome], "concentração":[concentracao]})
+        dados_anteriores = pd.read_excel("dadosCCD.xlsx")
+        juntadar_tabelas=pd.concat([dados_anteriores,dados_amostra])
+        juntadar_tabelas.to_excel("dadosCCD.xlsx", index=False)
         page.snack_bar = ft.SnackBar(content=ft.Text("✅ Sample saved successfully!"), open=True)
         page.update()
 
-    save_button= ft.ElevatedButton(text="💾Save image",on_click=save_image, top=600, right=370)
+    botao_capturar= ft.ElevatedButton(text="💾Save image",on_click=salvarimagem, top=600, right=370)
     
-    layout= ft.Stack(expand=True, 
-                    controls=[title, camera_display, save_button, 
-                             sample_name,sample_concentration, crop_button,notice_container,
-                             cropped_display, home_button, CNN_button, normalization_button, message_container])
+    estilo= ft.Stack(expand=True, 
+                    controls=[titulo, imagem_camera, botao_capturar, 
+                             nome_amostra,concentracao_amostra, botao_cortar,container_aviso,
+                             imagemcortada_foto, botao_pag_inicial, botao_CNN, botao_normalizacaoCCD, container_mensagem])
 
-    page.add(layout)
-    threading.Thread(target=live_feed, daemon=True).start()
-
-def extract_info_from_filename(filename):
-    info = re.search(r"(.+), C= ([\d.]+)\.jpg", filename)
-    if info:
-        name, concentration = info.groups()
-        return name, float(concentration)
+    page.add(estilo)
+    threading.Thread(target=aovivo, daemon=True).start()
+"""Extract sample name and concentration from filename"""
+def extrair_informacao_do_nome(nome_arquivo):
+    informacao = re.search(r"(.+), C= ([\d.]+)\.jpg", nome_arquivo)
+    if informacao:
+        nome, concentracao = informacao.groups()
+        return nome, float(concentracao)
     return None, None
-
-def load_regression_data(image_folder):
-    concentrations = []
-    intensities = []
+"""Load image data for regression analysis"""
+def carregar_dados_regressao(pasta_imagens):
+    concentracoes = []
+    intensidades = []
     
-    for filename in os.listdir(image_folder):
-        if filename.endswith(".jpg"):
-            path = os.path.join(image_folder, filename)
-            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    for nome_arquivo in os.listdir(pasta_imagens):
+        if nome_arquivo.endswith(".jpg"):
+            caminho = os.path.join(pasta_imagens, nome_arquivo)
+            img = cv2.imread(caminho, cv2.IMREAD_GRAYSCALE)
             if img is not None:
-                inverted_img = 255 - img
-                intensity = np.sum(inverted_img)
+                img_invertida = 255 - img
+                intensidade = np.sum(img_invertida)
                 
-                name, conc = extract_info_from_filename(filename)
+                nome, conc = extrair_informacao_do_nome(nome_arquivo)
                 if conc is not None:
-                    concentrations.append(conc)
-                    intensities.append(intensity)
+                    concentracoes.append(conc)
+                    intensidades.append(intensidade)
     
-    return np.array(concentrations), np.array(intensities)
-
+    return np.array(concentracoes), np.array(intensidades)
+"""Page for performing regression analysis on TLC images"""
 def CNN(page):
     page.clean()
     page.title = "Polynomial Regression Analysis"
     page.scroll = ft.ScrollMode.ALWAYS
     
-    folder_path = ""
-    test_file_path = ""
-    graph_container = ft.Column()
-    results_container = ft.Column()
-    coefficients = None
-    model = None
+    caminho_pasta = ""
+    caminho_arquivo_teste = ""
+    grafico_container = ft.Column()
+    resultados_container = ft.Column()
+    coef = None
+    modelo = None
     
-    initial_text = ft.Text("Select folder with images for analysis", 
+    comando_inicial = ft.Text("Select folder with images for analysis", 
                             size=20, weight=ft.FontWeight.BOLD)
     
-    folder_text = ft.Text("📂 No folder selected", size=14, italic=True)
-    file_text = ft.Text("📂 No test file selected", size=14, italic=True)
+    pasta_imagens = ft.Text("📂 No folder selected", size=14, italic=True)
+    arquivo_teste = ft.Text("📂 No test file selected", size=14, italic=True)
     status_text = ft.Text("🔄 Waiting for action...", size=14)
-    prediction_result = ft.Text("", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_800)
-    
-    def select_folder(e: ft.FilePickerResultEvent):
-        nonlocal folder_path
+    resultado_predicao = ft.Text("", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_800)
+
+    """Handle folder selection"""
+    def selecionar_pasta(e: ft.FilePickerResultEvent):
+        nonlocal caminho_pasta
         if e.path:
-            folder_path = e.path
-            folder_text.value = f"📂 Selected folder: {folder_path}"
+            caminho_pasta = e.path
+            pasta_imagens.value = f"📂 Selected folder: {caminho_pasta}"
             page.update()
-    
-    def select_test_file(e: ft.FilePickerResultEvent):
-        nonlocal test_file_path
+    """Handle test file selection"""
+    def selecionar_arquivo_teste(e: ft.FilePickerResultEvent):
+        nonlocal caminho_arquivo_teste
         if e.files:
-            test_file_path = e.files[0].path
-            file_text.value = f"📂 Selected file: {os.path.basename(test_file_path)}"
+            caminho_arquivo_teste = e.files[0].path
+            arquivo_teste.value = f"📂 Selected file: {os.path.basename(caminho_arquivo_teste)}"
             page.update()
     
-    folder_picker = ft.FilePicker(on_result=select_folder)
-    file_picker = ft.FilePicker(on_result=select_test_file)
-    page.overlay.extend([folder_picker, file_picker])
-    
-    def calculate_intensity(image_path):
-        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    pegar_pasta = ft.FilePicker(on_result=selecionar_pasta)
+    pegar_arquivo = ft.FilePicker(on_result=selecionar_arquivo_teste)
+    page.overlay.extend([pegar_pasta, pegar_arquivo])
+
+    """Calculate intensity from an image"""
+    def calcular_intensidade(caminho_imagem):
+        img = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
         if img is not None:
-            inverted_img = 255 - img
-            return np.sum(inverted_img)
+            img_invertida = 255 - img
+            return np.sum(img_invertida)
         return None
-    
-    def predict_concentration(e):
-        nonlocal coefficients, model
+    """Predict concentration from test image"""
+    def prever_concentracao(e):
+        nonlocal coef, modelo
         
-        if coefficients is None or model is None:
-            prediction_result.value = "⚠️ First train the model with calibration images!"
+        if coef is None or modelo is None:
+            resultado_predicao.value = "⚠️ First train the model with calibration images!"
             page.update()
             return
             
-        if not test_file_path:
-            prediction_result.value = "⚠️ No test file selected!"
+        if not caminho_arquivo_teste:
+            resultado_predicao.value = "⚠️ No test file selected!"
             page.update()
             return
             
         try:
-            intensity = calculate_intensity(test_file_path)
-            if intensity is None:
-                prediction_result.value = "❌ Error processing test image!"
+            intensidade = calcular_intensidade(caminho_arquivo_teste)
+            if intensidade is None:
+                resultado_predicao.value = "❌ Error processing test image!"
                 page.update()
                 return
                 
-            # Solve quadratic equation to find C given I
-            # coefficients[0]*C² + coefficients[1]*C + (coefficients[2] - intensity) = 0
-            a, b, c = coefficients[0], coefficients[1], coefficients[2] - intensity
+            # Resolver a equação quadrática para encontrar C dado I
+            # coef[0]*C² + coef[1]*C + (coef[2] - intensidade) = 0
+            a, b, c = coef[0], coef[1], coef[2] - intensidade
             
-            discriminant = b**2 - 4*a*c
-            if discriminant < 0:
-                prediction_result.value = "❌ Intensity outside calibration range!"
+            discriminante = b**2 - 4*a*c
+            if discriminante < 0:
+                resultado_predicao.value = "❌ Intensity outside calibration range!"
                 page.update()
                 return
                 
-            concentration = (-b + np.sqrt(discriminant)) / (2*a)
+            concentracao = (-b + np.sqrt(discriminante)) / (2*a)
             
-            prediction_result.value = f"Predicted concentration: {concentration:.3f} mg/mL"
+            resultado_predicao.value = f"Predicted concentration: {concentracao:.3f} mg/mL"
             page.update()
             
         except Exception as err:
-            prediction_result.value = f"❌ Error: {str(err)}"
+            resultado_predicao.value = f"❌ Erro: {str(err)}"
             page.update()
-    
-    def create_graph(x, y, coef):
+    """Create calibration curve graph"""
+    def criar_grafico(x, y, coef):
         plt.figure(figsize=(8, 5))
         plt.scatter(x, y, color="blue", label="Experimental data")
         
-        x_sorted = np.linspace(min(x), max(x), 500)
-        y_model = np.poly1d(coef)(x_sorted)
+        x_ordenado = np.linspace(min(x), max(x), 500)
+        y_modelo = np.poly1d(coef)(x_ordenado)
         
-        plt.plot(x_sorted, y_model, color="red", label="Polynomial model (degree 2)")
+        plt.plot(x_ordenado, y_modelo, color="red", label="Polynomial model (degree 2)")
         plt.xlabel("Concentration (mg/mL)")
         plt.ylabel("Total inverted intensity")
         plt.title("Calibration curve")
@@ -352,23 +358,23 @@ def CNN(page):
         plt.close()
         buf.seek(0)
         return base64.b64encode(buf.read()).decode("utf-8")
+    """Perform the regression analysis"""
+    def iniciar_analise(e):
+        nonlocal grafico_container, resultados_container, coef, modelo
     
-    def start_analysis(e):
-        nonlocal graph_container, results_container, coefficients, model
-    
-        if not folder_path:
+        if not caminho_pasta:
             status_text.value = "⚠️ Error: No folder selected!"
             page.update()
             return
     
         status_text.value = "📥 Loading data..."
-        graph_container.controls = []
-        results_container.controls = []
+        grafico_container.controls = []
+        resultados_container.controls = []
         page.update()
     
         try:
-            # Load data correctly: x=concentrations, y=intensities
-            x_real, y = load_regression_data(folder_path)
+            # Load data: x=concentrations, y=intensities
+            x_real, y = carregar_dados_regressao(caminho_pasta)
         
             if len(x_real) == 0:
                 status_text.value = "⚠️ Error: No valid images found!"
@@ -378,47 +384,48 @@ def CNN(page):
             status_text.value = "⚙️ Calculating regression..."
             page.update()
         
-            # Correct polynomial regression: y(intensity) = f(x(concentration))
-            coefficients = np.polyfit(x_real, y, 2)
-            model = np.poly1d(coefficients)
+            # Polynomial regression: y(intensity) = f(x(concentration))
+            coef = np.polyfit(x_real, y, 2)
+            modelo = np.poly1d(coef)
         
             # Predict intensities for known concentrations
-            y_pred = model(x_real)
+            y_pred = modelo(x_real)
         
             # Calculate predicted concentrations (solving quadratic equation)
             x_pred = []
-            for intensity in y:
-                a, b, c = coefficients[0], coefficients[1], coefficients[2] - intensity
-                discriminant = b**2 - 4*a*c
-                if discriminant >= 0:
-                    concentration = (-b + np.sqrt(discriminant)) / (2*a)
-                    x_pred.append(concentration)
+            for intensidade in y:
+                a, b, c = coef[0], coef[1], coef[2] - intensidade
+                discriminante = b**2 - 4*a*c
+                if discriminante >= 0:
+                    concentracao = (-b + np.sqrt(discriminante)) / (2*a)
+                    x_pred.append(concentracao)
                 else:
-                    x_pred.append(np.nan)  # Marker for out-of-range values
+                    x_pred.append(np.nan)  #  Marker for out-of-range values
         
             # Calculate MAE for concentrations
-            x_pred_valid = [x for x in x_pred if not np.isnan(x)]
-            x_real_valid = [x_real[i] for i in range(len(x_pred)) if not np.isnan(x_pred[i])]
+            x_pred_validas = [x for x in x_pred if not np.isnan(x)]
+            x_real_validas = [x_real[i] for i in range(len(x_pred)) if not np.isnan(x_pred[i])]
         
-            if len(x_pred_valid) > 0:
-                mae_conc = mean_absolute_error(x_real_valid, x_pred_valid)
+            if len(x_pred_validas) > 0:
+                mae_conc = mean_absolute_error(x_real_validas, x_pred_validas)
             else:
                 mae_conc = float('nan')
         
-            # Metrics for intensities (optional - can be removed if not needed)
+            # Calculate R² score
+            mae_int = mean_absolute_error(y, y_pred)
             r2 = r2_score(y, y_pred)
         
             # Create UI elements
-            equation = ft.Container(
+            equacao = ft.Container(
                 content=ft.Text(
-                    f"Model: Intensity = {coefficients[0]:.4e}·C² + {coefficients[1]:.4e}·C + {coefficients[2]:.4f}",
+                    f"Modelo: Intensidade = {coef[0]:.4e}·C² + {coef[1]:.4e}·C + {coef[2]:.4f}",
                     size=16,
                     weight=ft.FontWeight.BOLD
                 ),
                 padding=10
             )
         
-            metrics = ft.Container(
+            metricas = ft.Container(
                 content=ft.Column([
                     ft.Text("📊 Metrics:", weight=ft.FontWeight.BOLD),
                     ft.Text(f"• MAE (concentration): {mae_conc:.4f} mg/mL"),
@@ -427,7 +434,7 @@ def CNN(page):
                 padding=10
             )
         
-            table = ft.DataTable(
+            tabela = ft.DataTable(
                 columns=[
                     ft.DataColumn(ft.Text("Sample")),
                     ft.DataColumn(ft.Text("Real Conc. (mg/mL)")),
@@ -447,22 +454,22 @@ def CNN(page):
                 width=700
             )
         
-            img_base64 = create_graph(x_real, y, coefficients)
-            graph = ft.Image(
+            img_base64 = criar_grafico(x_real, y, coef)
+            grafico = ft.Image(
                 src_base64=img_base64,
                 width=600,
                 height=400,
                 fit=ft.ImageFit.CONTAIN
             )
         
-            results_container.controls = [
+            resultados_container.controls = [
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            equation,
-                            metrics,
+                            equacao,
+                            metricas,
                             ft.Text("📋 Results:", weight=ft.FontWeight.BOLD),
-                            table
+                            tabela
                         ]),
                         padding=20
                     ),
@@ -470,10 +477,10 @@ def CNN(page):
                 )
             ]
         
-            graph_container.controls = [
+            grafico_container.controls = [
                 ft.Card(
                     content=ft.Container(
-                        content=graph,
+                        content=grafico,
                         padding=20
                     )
                 )
@@ -482,24 +489,24 @@ def CNN(page):
             status_text.value = "✅ Analysis completed successfully!"
         
         except Exception as err:
-            status_text.value = f"❌ Error: {str(err)}"
-            results_container.controls = [
-                ft.Text(f"Error details: {str(err)}", color="red")
+            status_text.value = f"❌ Erro: {str(err)}"
+            resultados_container.controls = [
+                ft.Text(f"Detalhes do erro: {str(err)}", color="red")
             ]
     
         page.update()
     
     page.add(
         ft.Column([
-            initial_text,
+            comando_inicial,
             ft.Row([
                 ft.ElevatedButton("Select Folder", 
-                                 on_click=lambda e: folder_picker.get_directory_path()),
-                folder_text
+                                 on_click=lambda e: pegar_pasta.get_directory_path()),
+                pasta_imagens
             ], alignment=ft.MainAxisAlignment.CENTER),
             
             ft.ElevatedButton("Start Analysis", 
-                             on_click=start_analysis,
+                             on_click=iniciar_analise,
                              icon=ft.icons.ANALYTICS),
             
             ft.Divider(height=20),
@@ -507,58 +514,245 @@ def CNN(page):
             ft.Text("Test new sample:", size=16, weight=ft.FontWeight.BOLD),
             ft.Row([
                 ft.ElevatedButton("Select Test Image",
-                                 on_click=lambda e: file_picker.pick_files(allowed_extensions=["jpg", "jpeg", "png"])),
-                file_text
+                                 on_click=lambda e: pegar_arquivo.pick_files(allowed_extensions=["jpg", "jpeg", "png"])),
+                arquivo_teste
             ], alignment=ft.MainAxisAlignment.CENTER),
             
             ft.ElevatedButton("Predict Concentration",
-                            on_click=predict_concentration,
+                            on_click=prever_concentracao,
                             icon=ft.icons.CALCULATE),
             
-            prediction_result,
+            resultado_predicao,
             
             status_text,
-            results_container,
-            graph_container,
+            resultados_container,
+            grafico_container,
             ft.ElevatedButton("⬅ Back to home", 
-                             on_click=lambda e: go_to_page(e.page, home_page))
+                             on_click=lambda e: ir_para_pagina(e.page, pagina_inicial))
         ], 
         scroll=ft.ScrollMode.ALWAYS,
         spacing=20)
     )
     page.update()
 
-def normalization(page):
-    page.title = "Chromatography Analysis - Flet"
+# página para fazer normalização da CCD
+
+# Global variables
+#creates an empty variable to store the image bytes in the future
+arquivo_da_imagem = None
+#creates an empty list where the percentages will be stored
+percentuais = []
+#function to load the image, uses the and for execution, image preview icon and status text
+"""Load image from file"""
+def carregar_imagem(e, visualizacao_da_imagem, estatus_do_texto):
+    #image file global variable, image bytes
+    global arquivo_da_imagem
+    # if no file is selected
+    if not e.files:
+        #exibir a mensagem
+        estatus_do_texto.value = "⚠️ No image loaded."
+        #make text status update
+        estatus_do_texto.update()
+        return
+    # put the selected file in the file variable
+    arquivo = e.files[0]
+
+    
+
+    try:
+        # rb eh modo arquivo binário
+        # ler o arquivo aberto como abrir
+        with open(arquivo.path, "rb") as abrir:
+            #substituir o arquivo da imagem pela leitura o arquivo aberto (abrir)
+            arquivo_da_imagem = abrir.read()
+        #fazer a conversão do pil da imagem
+        pil_da_imagem = Image.open(BytesIO(arquivo_da_imagem))
+        
+        #converter o arquivo da imagem em base 64 para ser lido pelo app
+        img_base64 = base64.b64encode(arquivo_da_imagem).decode("utf-8")
+        #substituir o src base 64 da imagem projetada pelo app (visualizacao_da_imagem) pelo arquivo de base 64
+        visualizacao_da_imagem.src_base64 = img_base64
+        #fazer o update da vizualização da imagem no app
+        visualizacao_da_imagem.update()
+        # no estatus (frase de aplicação) colocar o valor da frase abaixo
+        estatus_do_texto.value = "✅ Image loaded successfully!"
+        #excessao caso o codigo anterior de carregar imagem não funcione
+    except Exception as err:
+        # substituir a frase de estatutos pela frase abaixo
+        estatus_do_texto.value = f"❌ Error loading image: {err}"
+    # fazer o update do texto
+    estatus_do_texto.update()
+
+"""Process image to detect spots and calculate normalization"""
+def processar_imagem():
+    global arquivo_da_imagem, percentuais
+
+    if arquivo_da_imagem is None:
+        return None, "⚠️ No image loaded!"
+
+    try:
+        # Carregar imagem (mantido igual ao original)
+        pil_da_imagem = Image.open(BytesIO(arquivo_da_imagem)).convert("RGB")
+        imagem = np.array(pil_da_imagem)
+        imagem_bgr = cv2.cvtColor(imagem, cv2.COLOR_RGB2BGR)
+
+        # Pré-processamento (mantido igual)
+        imagem_bgr = cv2.GaussianBlur(imagem_bgr, (9, 9), 0)
+        imagem_hsv = cv2.cvtColor(imagem_bgr, cv2.COLOR_BGR2HSV)
+        
+        # Segmentação de cor (mantido igual)
+        cor_baixa = np.array([80, 30, 30])
+        cor_alta = np.array([140, 255, 255])
+        mascara_cor = cv2.inRange(imagem_hsv, cor_baixa, cor_alta)
+
+        # Limpeza morfológica (mantido igual)
+        kernel = np.ones((9, 9), np.uint8)
+        mascara_limpa = cv2.morphologyEx(mascara_cor, cv2.MORPH_CLOSE, kernel)
+        mascara_limpa = cv2.dilate(mascara_limpa, kernel, iterations=1)
+
+        # Detecção de contornos (mantido igual)
+        contornos, _ = cv2.findContours(mascara_limpa, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        intensidades = []
+        centros_x = []
+
+        imagem_cinza = cv2.cvtColor(imagem_bgr, cv2.COLOR_BGR2GRAY)
+
+        for contorno in contornos:
+            area = cv2.contourArea(contorno)
+            if area > 150:
+                mascara_mancha = np.zeros_like(imagem_cinza)
+                cv2.drawContours(mascara_mancha, [contorno], -1, 255, -1)
+
+                x, y, w, h = cv2.boundingRect(contorno)
+                roi = imagem_cinza[y:y+h, x:x+w]
+                roi_invertido = 255 - roi
+                sinal_total = np.sum(roi_invertido * (mascara_mancha[y:y+h, x:x+w] // 255))
+
+                intensidades.append(sinal_total)
+
+                M = cv2.moments(contorno)
+                centro_x = int(M["m10"] / M["m00"]) if M["m00"] != 0 else 0
+                centros_x.append(centro_x)
+
+                cv2.drawContours(imagem_bgr, [contorno], -1, (0, 0, 255), 2)
+
+        percentuais = []
+
+        if intensidades:
+            intensidades_ordenadas = [i for _, i in sorted(zip(centros_x, intensidades))]
+            concentracoes_conhecidas = [25, 12.5, 6.25, 3.13, 1.57, 0.785]
+
+            if len(intensidades_ordenadas) == len(concentracoes_conhecidas):
+                coeficientes = np.polyfit(intensidades_ordenadas, concentracoes_conhecidas, 2)
+                modelo = np.poly1d(coeficientes)
+                concentracoes_estimadas = modelo(intensidades_ordenadas)
+                total = sum(concentracoes_estimadas)
+                percentuais = [(c / total) * 100 for c in concentracoes_estimadas]
+            else:
+                total = sum(intensidades_ordenadas)
+                percentuais = [(i / total) * 100 for i in intensidades_ordenadas]
+
+        _, buffer = cv2.imencode(".png", imagem_bgr)
+        imagem_base64 = base64.b64encode(buffer).decode("utf-8")
+        return imagem_base64, "✅ Processing completed!"
+
+    except Exception as err:
+        return None, f"❌ Processing error: {err}"
+
+
+"""Display detected contours on image"""
+def exibir_contornos(e, vizualidacao_da_imagem, estatus_do_texto):
+    def processar():
+        src, msg = processar_imagem()
+        if src:
+            vizualidacao_da_imagem.src_base64 = src
+            vizualidacao_da_imagem.update()
+        estatus_do_texto.value = msg
+        estatus_do_texto.update()
+    threading.Thread(target=processar, daemon=True).start()
+
+grafico_container = None
+
+"""Display spot distribution graph"""
+def exibir_grafico(e):
+    global percentuais, grafico_container
+
+    if not percentuais:
+        e.page.snack_bar = ft.SnackBar(ft.Text("⚠️ No spots detected!"), open=True)
+        e.page.update()
+        return
+
+    try:
+        # Generate matplotlib graph
+        fig, ax = plt.subplots()
+        barras = ax.bar(range(1, len(percentuais) + 1), percentuais, color='blue')
+        ax.set_xlabel("Spot")
+        ax.set_ylabel("Normalized Area (%")
+        ax.set_title("Spot Distribution")
+        ax.set_xticks(range(1, len(percentuais) + 1))
+        for barra in barras:
+            altura = barra.get_height()
+            ax.text(barra.get_x() + barra.get_width() / 2, altura + 0.5, f"{altura:.2f}%", ha='center', va='bottom', fontsize=8)
+
+        # Convert to base64 image
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        plt.close(fig)
+
+        # Update graph container
+        grafico_container.controls.clear()
+        grafico_container.controls.append(ft.Image(src_base64=img_str, width=400, height=300))
+        grafico_container.update()
+
+    except Exception as err:
+        e.page.snack_bar = ft.SnackBar(ft.Text(f"❌ Erro ao gerar gráfico: {err}"), open=True)
+        e.page.update()
+
+
+
+"""Page for TLC spot normalization analysis"""
+def normalizacao(page):
+    page.title = "Chromatography Analysis"
     page.scroll = ft.ScrollMode.ALWAYS
 
-    status_text = ft.Text("🔄 Waiting for action...")
-    image_display = ft.Image(width=300, height=300, fit=ft.ImageFit.CONTAIN)
+    estatus_do_texto = ft.Text("🔄 Waiting for action...")
+    visualizacao_da_imagem = ft.Image(width=300, height=300, fit=ft.ImageFit.CONTAIN)
 
-    file_picker = ft.FilePicker(on_result=lambda e: load_image(e, image_display, status_text))
+    file_picker = ft.FilePicker(on_result=lambda e: carregar_imagem(e, visualizacao_da_imagem, estatus_do_texto))
     page.overlay.append(file_picker)
 
-    load_button = ft.ElevatedButton("📂 Load Image", on_click=lambda _: file_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg"]))
-    contours_button = ft.ElevatedButton("🔍 Show Contours", on_click=lambda e: show_contours(e, image_display, status_text))
-    global graph_container
-    graph_container = ft.Column([])
+    botao_carregar = ft.ElevatedButton("📂 Load Image", on_click=lambda _: file_picker.pick_files(allowed_extensions=["png", "jpg", "jpeg"]))
+    botao_contornos = ft.ElevatedButton("🔍 Show Contours", on_click=lambda e: exibir_contornos(e, visualizacao_da_imagem, estatus_do_texto))
+    global grafico_container
+    grafico_container = ft.Column([])
 
-    graph_button = ft.ElevatedButton("📊 Show Graph", on_click=show_graph)
-    home_button = ft.ElevatedButton(text="Back to home",
-                                        on_click=lambda e: go_to_page(e.page, home_page))
+    botao_grafico = ft.ElevatedButton("📊 Show Graph", on_click=exibir_grafico)
+
+    # Adiciona o botão e o gráfico ao layout da tela
+    page.add(botao_grafico)
+    page.add(grafico_container)
+
+
+    botao_pag_inicial = ft.ElevatedButton(text="Back to home",
+                                          on_click=lambda e: ir_para_pagina(e.page, pagina_inicial),
+                                          )
 
     page.add(
         ft.Column([
-            load_button,
-            image_display,
-            contours_button,
-            graph_button,
-            status_text,
-            home_button
+            botao_carregar,
+            visualizacao_da_imagem,
+            botao_contornos,
+            botao_grafico,
+            estatus_do_texto,
+            botao_pag_inicial
         ], alignment=ft.MainAxisAlignment.CENTER)
     )
 
+    
 def main(page: ft.Page):
-    home_page(page)
+    pagina_inicial(page)  # Carrega a página inicial por padrão
 
 ft.app(target=main)
